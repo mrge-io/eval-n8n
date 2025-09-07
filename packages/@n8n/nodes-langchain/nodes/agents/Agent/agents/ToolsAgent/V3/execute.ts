@@ -206,7 +206,7 @@ type ToolCallData = {
 		tool: string;
 		toolInput: Record<string, unknown>;
 		log: string | number | true | object;
-		messageLog: AIMessage[];
+		messageToolsAgentV3Log: AIMessage[];
 		toolCallId: IDataObject | GenericValue | GenericValue[] | IDataObject[];
 		type: string | number | true | object;
 	};
@@ -286,7 +286,7 @@ export async function toolsAgentExecute(
 	this: IExecuteFunctions | ISupplyDataFunctions,
 	response?: Response<RequestResponseMetadata>,
 ): Promise<INodeExecutionData[][] | Request<RequestResponseMetadata>> {
-	this.logger.debug('Executing Tools Agent V2');
+	this.logger.debug('Executing Tools Agent V3');
 
 	const returnData: INodeExecutionData[] = [];
 	let request: Request<RequestResponseMetadata> | undefined = undefined;
