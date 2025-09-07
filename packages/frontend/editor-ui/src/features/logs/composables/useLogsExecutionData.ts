@@ -1,4 +1,4 @@
-import { watch, computed, ref } from 'vue';
+import { watch, computed, ref, type ComputedRef } from 'vue';
 import { type IExecutionResponse } from '@/Interface';
 import { Workflow, type IRunExecutionData } from 'n8n-workflow';
 import { useWorkflowsStore } from '@/stores/workflows.store';
@@ -7,11 +7,11 @@ import { useThrottleFn } from '@vueuse/core';
 import { createLogTree, findSubExecutionLocator, mergeStartData } from '@/features/logs/logs.utils';
 import { parse } from 'flatted';
 import { useToast } from '@/composables/useToast';
-import type { LatestNodeInfo, LogEntry } from '../logs.types';
+import type { LatestNodeInfo, LogEntry, LogTreeFilter } from '../logs.types';
 import { isChatNode } from '@/utils/aiUtils';
 import { LOGS_EXECUTION_DATA_THROTTLE_DURATION, PLACEHOLDER_EMPTY_WORKFLOW_ID } from '@/constants';
 
-export function useLogsExecutionData() {
+export function useLogsExecutionData(filter?: ComputedRef<LogTreeFilter>) {
 	const nodeHelpers = useNodeHelpers();
 	const workflowsStore = useWorkflowsStore();
 	const toast = useToast();
@@ -20,14 +20,8 @@ export function useLogsExecutionData() {
 	const subWorkflowExecData = ref<Record<string, IRunExecutionData>>({});
 	const subWorkflows = ref<Record<string, Workflow>>({});
 
-	const workflow = computed(() =>
-		execData.value
-			? new Workflow({
-					...execData.value?.workflowData,
-					nodeTypes: workflowsStore.getNodeTypes(),
-				})
-			: undefined,
-	);
+	const workflow = ref<Workflow>();
+
 	const latestNodeNameById = computed(() =>
 		Object.values(workflow.value?.nodes ?? {}).reduce<Record<string, LatestNodeInfo>>(
 			(acc, node) => {
@@ -59,6 +53,7 @@ export function useLogsExecutionData() {
 			execData.value,
 			subWorkflows.value,
 			subWorkflowExecData.value,
+			filter?.value,
 		);
 	});
 
@@ -117,6 +112,13 @@ export function useLogsExecutionData() {
 								workflowsStore.workflowExecutionStartedData?.[1] ?? {},
 								workflowsStore.workflowExecutionData,
 							);
+
+				workflow.value = execData.value
+					? new Workflow({
+							...execData.value?.workflowData,
+							nodeTypes: workflowsStore.getNodeTypes(),
+						})
+					: undefined;
 
 				if (executionId !== previousExecutionId) {
 					// Reset sub workflow data when top-level execution changes

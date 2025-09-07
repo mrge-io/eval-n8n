@@ -4,9 +4,7 @@ import { useClearExecutionButtonVisible } from '@/features/logs/composables/useC
 import { useI18n } from '@n8n/i18n';
 import { N8nButton, N8nRadioButtons, N8nText, N8nTooltip } from '@n8n/design-system';
 import { computed, nextTick, toRef, watch } from 'vue';
-import LogsOverviewRow from '@/features/logs/components/LogsOverviewRow.vue';
-import { useRunWorkflow } from '@/composables/useRunWorkflow';
-import { useRouter } from 'vue-router';
+import LogsOverviewRows from '@/features/logs/components/LogsOverviewRows.vue';
 import LogsViewExecutionSummary from '@/features/logs/components/LogsViewExecutionSummary.vue';
 import { getSubtreeTotalConsumedTokens, getTotalConsumedTokens } from '@/features/logs/logs.utils';
 import { useVirtualList } from '@vueuse/core';
@@ -45,8 +43,6 @@ const emit = defineEmits<{
 defineSlots<{ actions: {} }>();
 
 const locale = useI18n();
-const router = useRouter();
-const runWorkflow = useRunWorkflow({ router });
 const isClearExecutionButtonVisible = useClearExecutionButtonVisible();
 const isEmpty = computed(() => flatLogEntries.length === 0 || execution === undefined);
 const switchViewOptions = computed(() => [
@@ -64,17 +60,15 @@ const consumedTokens = computed(() =>
 		),
 	),
 );
-
+const timeTook = computed(() =>
+	execution?.startedAt && execution.stoppedAt
+		? +new Date(execution.stoppedAt) - +new Date(execution.startedAt)
+		: undefined,
+);
 const shouldShowTokenCountColumn = computed(
 	() =>
 		consumedTokens.value.totalTokens > 0 ||
 		entries.some((entry) => getSubtreeTotalConsumedTokens(entry, true).totalTokens > 0),
-);
-const isExpanded = computed(() =>
-	flatLogEntries.reduce<Record<string, boolean>>((acc, entry, index, arr) => {
-		acc[entry.id] = arr[index + 1]?.parent?.id === entry.id;
-		return acc;
-	}, {}),
 );
 const virtualList = useVirtualList(
 	toRef(() => flatLogEntries),
@@ -83,14 +77,6 @@ const virtualList = useVirtualList(
 
 function handleSwitchView(value: 'overview' | 'details') {
 	emit('select', value === 'overview' ? undefined : flatLogEntries[0]);
-}
-
-async function handleTriggerPartialExecution(treeNode: LogEntry) {
-	const latestName = latestNodeInfo[treeNode.node.id]?.name ?? treeNode.node.name;
-
-	if (latestName) {
-		await runWorkflow.runWorkflow({ destinationNode: latestName });
-	}
 }
 
 // While executing, scroll to the bottom if there's no selection
@@ -179,31 +165,22 @@ watch(
 					:status="execution.status"
 					:consumed-tokens="consumedTokens"
 					:start-time="+new Date(execution.startedAt)"
-					:time-took="
-						execution.startedAt && execution.stoppedAt
-							? +new Date(execution.stoppedAt) - +new Date(execution.startedAt)
-							: undefined
-					"
+					:time-took="timeTook"
 				/>
 				<div :class="$style.tree" v-bind="virtualList.containerProps">
-					<div v-bind="virtualList.wrapperProps.value" role="tree">
-						<LogsOverviewRow
-							v-for="{ data, index } of virtualList.list.value"
-							:key="index"
-							:data="data"
-							:is-read-only="isReadOnly"
-							:is-selected="data.id === selected?.id"
-							:is-compact="isCompact"
-							:should-show-token-count-column="shouldShowTokenCountColumn"
-							:latest-info="latestNodeInfo[data.node.id]"
-							:expanded="isExpanded[data.id]"
-							:can-open-ndv="data.executionId === execution?.id"
-							@toggle-expanded="emit('toggleExpanded', data)"
-							@open-ndv="emit('openNdv', data)"
-							@trigger-partial-execution="handleTriggerPartialExecution(data)"
-							@toggle-selected="emit('select', selected?.id === data.id ? undefined : data)"
-						/>
-					</div>
+					<LogsOverviewRows
+						v-bind="virtualList.wrapperProps.value"
+						:is-read-only="isReadOnly"
+						:selected="selected"
+						:is-compact="isCompact"
+						:should-show-token-count-column="shouldShowTokenCountColumn"
+						:latest-node-info="latestNodeInfo"
+						:flat-log-entries="flatLogEntries"
+						:can-open-ndv="true"
+						@toggle-expanded="emit('toggleExpanded', $event)"
+						@open-ndv="emit('openNdv', $event)"
+						@select="emit('select', $event)"
+					/>
 				</div>
 				<N8nRadioButtons
 					size="small-medium"

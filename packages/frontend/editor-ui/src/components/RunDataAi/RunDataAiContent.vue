@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { IAiData, IAiDataContent } from '@/Interface';
+import type { IAiDataContent } from '@/Interface';
 import { useNodeTypesStore } from '@/stores/nodeTypes.store';
 import { useWorkflowsStore } from '@/stores/workflows.store';
 import type { INodeTypeDescription, NodeConnectionType, NodeError } from 'n8n-workflow';
@@ -7,10 +7,10 @@ import { computed } from 'vue';
 import NodeIcon from '@/components/NodeIcon.vue';
 import AiRunContentBlock from './AiRunContentBlock.vue';
 import { useI18n } from '@n8n/i18n';
-import { getConsumedTokens } from '@/components/RunDataAi/utils';
 import ConsumedTokensDetails from '@/components/ConsumedTokensDetails.vue';
 import ViewSubExecution from '../ViewSubExecution.vue';
 import { formatTokenUsageCount } from '@/utils/aiUtils';
+import { getConsumedTokens } from '@/features/logs/logs.utils';
 
 interface RunMeta {
 	startTimeMs: number;
@@ -23,8 +23,11 @@ interface RunMeta {
 		executionId: string;
 	};
 }
+
 const props = defineProps<{
-	inputData: IAiData;
+	node: string;
+	runIndex: number;
+	inputData: IAiDataContent;
 	contentIndex: number;
 }>();
 
@@ -33,13 +36,10 @@ const workflowsStore = useWorkflowsStore();
 
 const i18n = useI18n();
 
-const consumedTokensSum = computed(() => {
-	// eslint-disable-next-line @typescript-eslint/no-use-before-define
-	return getConsumedTokens(outputRun.value);
-});
+const consumedTokensSum = computed(() => getConsumedTokens(props.inputData.data ?? []));
 
 function extractRunMeta(run: IAiDataContent) {
-	const uiNode = workflowsStore.getNodeByName(props.inputData.node);
+	const uiNode = workflowsStore.getNodeByName(props.node);
 	const nodeType = nodeTypesStore.getNodeType(uiNode?.type ?? '');
 
 	const runMeta: RunMeta = {
@@ -54,15 +54,11 @@ function extractRunMeta(run: IAiDataContent) {
 	return runMeta;
 }
 
-const outputRun = computed(() => {
-	return props.inputData.data.find((r) => r.inOut === 'output');
-});
-
 const runMeta = computed(() => {
-	if (outputRun.value === undefined) {
+	if (props.inputData.inOut === 'input') {
 		return;
 	}
-	return extractRunMeta(outputRun.value);
+	return extractRunMeta(props.inputData);
 });
 
 const executionRunData = computed(() => {
@@ -70,9 +66,7 @@ const executionRunData = computed(() => {
 });
 
 const outputError = computed(() => {
-	return executionRunData.value?.[props.inputData.node]?.[props.inputData.runIndex]?.error as
-		| NodeError
-		| undefined;
+	return executionRunData.value?.[props.node]?.[props.runIndex]?.error as NodeError | undefined;
 });
 </script>
 
@@ -87,7 +81,7 @@ const outputError = computed(() => {
 			/>
 			<div :class="$style.headerWrap">
 				<p :class="$style.title">
-					{{ inputData.node }}
+					{{ props.node }}
 				</p>
 				<ul :class="$style.meta">
 					<li v-if="runMeta?.startTimeMs">{{ runMeta?.executionTimeMs }}ms</li>
@@ -124,10 +118,10 @@ const outputError = computed(() => {
 			</div>
 		</header>
 
-		<main v-for="(run, index) in props.inputData.data" :key="index" :class="$style.content">
+		<main :class="$style.content">
 			<AiRunContentBlock
-				:run-data="run"
-				:error="run.inOut === 'output' ? outputError : undefined"
+				:run-data="props.inputData"
+				:error="props.inputData.inOut === 'input' ? undefined : outputError"
 			/>
 		</main>
 	</div>

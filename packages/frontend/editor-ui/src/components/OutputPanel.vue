@@ -460,7 +460,7 @@ function handleChangeCollapsingColumn(columnName: string | null) {
 		</template>
 
 		<template v-if="outputMode === 'logs' && node" #content>
-			<RunDataAi :node="node" :run-index="runIndex" :workflow-object="workflowObject" />
+			<RunDataAi :node="node" :run-index="runIndex" />
 		</template>
 
 		<template #recovered-artificial-output-data>
