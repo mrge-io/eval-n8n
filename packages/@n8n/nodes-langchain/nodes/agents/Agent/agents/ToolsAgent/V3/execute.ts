@@ -206,7 +206,6 @@ type ToolCallData = {
 		tool: string;
 		toolInput: Record<string, unknown>;
 		log: string | number | true | object;
-		messageToolsAgentV3Log: AIMessage[];
 		toolCallId: IDataObject | GenericValue | GenericValue[] | IDataObject[];
 		type: string | number | true | object;
 	};
@@ -220,10 +219,9 @@ function buildSteps(
 	const steps: ToolCallData[] = [];
 
 	if (response) {
-		const responses = response?.actionResponses;
-		for (const tool of responses.filter(
-			(response) => response.action?.metadata?.itemIndex === itemIndex,
-		)) {
+		const responses = response?.actionResponses ?? [];
+		for (const tool of responses) {
+			if (tool.action?.metadata?.itemIndex !== itemIndex) continue;
 			const toolInput: IDataObject = {
 				...tool.action.input,
 				id: tool.action.id,

@@ -145,7 +145,7 @@ describe('WorkflowTool::WorkflowToolService', () => {
 				name: 'TestTool',
 				description: 'Test Description',
 				itemIndex: 0,
-				log: false,
+				log: true,
 			};
 
 			jest
