@@ -1,4 +1,4 @@
-import { DynamicStructuredTool, DynamicTool } from '@langchain/core/tools';
+import { DynamicTool, DynamicStructuredTool } from '@langchain/core/tools';
 import { TaskRunnersConfig } from '@n8n/config';
 import { Container } from '@n8n/di';
 import type { JSONSchema7 } from 'json-schema';
@@ -10,6 +10,8 @@ import { getSandboxContext } from 'n8n-nodes-base/dist/nodes/Code/Sandbox';
 import type {
 	ExecutionError,
 	IDataObject,
+	IExecuteFunctions,
+	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
 	ISupplyDataFunctions,
@@ -49,10 +51,13 @@ const jsonSchemaField = buildInputSchemaField({ showExtraProps: { specifyInputSc
 function getTool(
 	ctx: ISupplyDataFunctions | IExecuteFunctions,
 	itemIndex: number,
-	enableLogs: boolean = false,
+	log: boolean = true,
 ) {
 	const node = ctx.getNode();
 	const workflowMode = ctx.getMode();
+
+	const runnersConfig = Container.get(TaskRunnersConfig);
+	const isRunnerEnabled = runnersConfig.enabled;
 
 	const { typeVersion } = node;
 	const name =
@@ -72,6 +77,7 @@ function getTool(
 		code = ctx.getNodeParameter('pythonCode', itemIndex) as string;
 	}
 
+	// @deprecated - TODO: Remove this after a new python runner is implemented
 	const getSandbox = (query: string | IDataObject, index = 0) => {
 		const context = getSandboxContext.call(ctx, index);
 		context.query = query;
@@ -93,18 +99,37 @@ function getTool(
 		return sandbox;
 	};
 
-	const runFunction = async (query: string | IDataObject): Promise<string> => {
-		const sandbox = getSandbox(query, itemIndex);
-		return await sandbox.runCode<string>();
+	const runFunction = async (query: string | IDataObject): Promise<unknown> => {
+		if (language === 'javaScript' && isRunnerEnabled) {
+			const sandbox = new JsTaskRunnerSandbox(
+				code,
+				'runOnceForAllItems',
+				workflowMode,
+				ctx,
+				undefined,
+				{
+					query,
+				},
+			);
+			const executionData = await sandbox.runCodeForTool();
+			return executionData;
+		} else {
+			// use old vm2-based sandbox for python or when without runner enabled
+			const sandbox = getSandbox(query, itemIndex);
+			return await sandbox.runCode<string>();
+		}
 	};
 
 	const toolHandler = async (query: string | IDataObject): Promise<string> => {
-		const index = 'getRunIndex' in ctx ? ctx.getRunIndex() : ctx.getNextRunIndex();
-		if (enableLogs) {
-			ctx.addInputData(NodeConnectionTypes.AiTool, [[{ json: { query } }]]);
+		let { index } = log
+			? ctx.addInputData(NodeConnectionTypes.AiTool, [[{ json: { query } }]])
+			: { index: 0 };
+
+		if ('getRunIndex' in ctx) {
+			index = ctx.getRunIndex();
 		}
 
-		let response: string = '';
+		let response: any = '';
 		let executionError: ExecutionError | undefined;
 		try {
 			response = await runFunction(query);
@@ -125,12 +150,10 @@ function getTool(
 			response = `There was an error: "${executionError.message}"`;
 		}
 
-		if (enableLogs) {
-			if (executionError) {
-				void ctx.addOutputData(NodeConnectionTypes.AiTool, index, executionError);
-			} else {
-				void ctx.addOutputData(NodeConnectionTypes.AiTool, index, [[{ json: { response } }]]);
-			}
+		if (executionError && log) {
+			void ctx.addOutputData(NodeConnectionTypes.AiTool, index, executionError);
+		} else if (log) {
+			void ctx.addOutputData(NodeConnectionTypes.AiTool, index, [[{ json: { response } }]]);
 		}
 
 		return response;
@@ -176,7 +199,6 @@ function getTool(
 
 	return tool;
 }
-
 export class ToolCode implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Code Tool',
@@ -335,13 +357,12 @@ export class ToolCode implements INodeType {
 			response: getTool(this, itemIndex),
 		};
 	}
-
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const result: INodeExecutionData[][] = [];
 		const input = this.getInputData();
 		for (let i = 0; i < input.length; i++) {
 			const item = input[i];
-			const tool = getTool(this, i);
+			const tool = getTool(this, i, false);
 			result.push([
 				{
 					json: {
