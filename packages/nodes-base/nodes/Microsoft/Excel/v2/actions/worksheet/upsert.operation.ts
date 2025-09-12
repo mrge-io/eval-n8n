@@ -210,8 +210,8 @@ export async function execute(
 		const worksheetId = this.getNodeParameter('worksheet', 0, undefined, {
 			extractValue: true,
 		}) as string;
-
-		let range = this.getNodeParameter('range', 0, '') as string;
+		const manualRange = this.getNodeParameter('range', 0, '') as string;
+		let range = manualRange;
 		checkRange(this.getNode(), range);
 
 		const dataMode = this.getNodeParameter('dataMode', 0) as string;
@@ -260,7 +260,7 @@ export async function execute(
 
 		if (
 			dataMode !== 'raw' &&
-			(worksheetData.values === undefined || (worksheetData.values as string[][]).length <= 1)
+			(worksheetData.values === undefined || (worksheetData.values as string[][]).length < 1)
 		) {
 			throw new NodeOperationError(
 				this.getNode(),
@@ -310,7 +310,12 @@ export async function execute(
 		) as boolean;
 
 		//remove empty rows from the end
-		if (nodeVersion > 2 && !appendAfterSelectedRange && updateSummary.updatedData.length) {
+		if (
+			nodeVersion > 2 &&
+			!manualRange &&
+			!appendAfterSelectedRange &&
+			updateSummary.updatedData.length
+		) {
 			for (let i = updateSummary.updatedData.length - 1; i >= 0; i--) {
 				if (
 					updateSummary.updatedData[i].every(
