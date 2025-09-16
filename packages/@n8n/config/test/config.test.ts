@@ -347,9 +347,6 @@ describe('GlobalConfig', () => {
 		tags: {
 			disabled: false,
 		},
-		partialExecutions: {
-			version: 2,
-		},
 		workflowHistory: {
 			enabled: true,
 			pruneTime: -1,
