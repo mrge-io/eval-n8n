@@ -2781,21 +2781,8 @@ export class HubspotV2 implements INodeType {
 							//@ts-ignore
 							body.associations = getAssociations(associations);
 
-							const endpoint = '/crm/v3/objects/meetings';
-							responseData = await hubspotApiRequest.call(this, 'POST', endpoint, {
-								properties: {
-									hs_timestamp: '2026-03-23T01:02:44.872Z',
-									hubspot_owner_id: '82719439',
-									hs_meeting_title: 'Intro meeting',
-									hs_meeting_body: 'The first meeting to discuss options',
-									hs_internal_meeting_notes: 'These are the meeting notes',
-									hs_meeting_external_url: 'https://Zoom.com/0000',
-									hs_meeting_location: 'Remote',
-									hs_meeting_start_time: '2026-03-23T01:02:44.872Z',
-									hs_meeting_end_time: '2026-03-23T01:52:44.872Z',
-									hs_meeting_outcome: 'SCHEDULED',
-								},
-							});
+							const endpoint = '/engagements/v1/engagements';
+							responseData = await hubspotApiRequest.call(this, 'POST', endpoint, body);
 						}
 						//https://legacydocs.hubspot.com/docs/methods/engagements/get_engagement
 						if (operation === 'delete') {
