@@ -268,6 +268,12 @@ export const parseAddress = (addressOrRange: string) => {
 	};
 };
 
+/**
+ * Finds a next column in the sequence of columns in Excel
+ * Example:
+ * A -> B
+ * Z -> AA
+ */
 export const nextExcelColumn = (col: string, offset = 1) => {
 	if (offset < 0) {
 		throw new Error(`Invalid offset: ${offset}`);
@@ -295,11 +301,17 @@ export const nextExcelColumn = (col: string, offset = 1) => {
 	return toLetters(num + offset);
 };
 
+/**
+ * Accepts a used range and finds a new area under the used range.
+ * Changes the new area based on the number of columns and rows inserted.
+ * Example:
+ * A1:B2 -> A3:B4
+ */
 export const findAppendRange = (
-	address: string,
+	usedRange: string,
 	{ cols, rows }: { cols: number; rows: number },
 ) => {
-	const { cellFrom, cellTo } = parseAddress(address);
+	const { cellFrom, cellTo } = parseAddress(usedRange);
 	const isEmptyTable = cellFrom.value === cellTo.value;
 	// if table is empty we don't want to skip the first row
 	const rowOffset = isEmptyTable ? 0 : 1;
