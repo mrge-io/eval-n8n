@@ -115,6 +115,7 @@ export function updateByDefinedValues(
 				}
 			}
 		} else {
+			// if we are appending after selected range, empty rows in the range cannot be updated
 			const canUpdateEmptyRow = (row: SheetRow) =>
 				!row[columnToMatchOnIndex] && !appendAfterSelectedRange;
 			const rowIndex = originalValues.findIndex(

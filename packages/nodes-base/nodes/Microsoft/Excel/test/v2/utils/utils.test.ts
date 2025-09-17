@@ -7,6 +7,7 @@ import {
 	checkRange,
 	findAppendRange,
 	nextExcelColumn,
+	parseAddress,
 	prepareOutput,
 	updateByAutoMaping,
 	updateByDefinedValues,
@@ -700,5 +701,41 @@ describe('Test MicrosoftExcelV2, nextExcelColumn', () => {
 		// Verify Z is followed by AA
 		const zIndex = sequence.indexOf('Z');
 		expect(sequence[zIndex + 1]).toBe('AA');
+	});
+});
+
+describe('Test MicrosoftExcelV2, parseAddress', () => {
+	it('should parse normal address', () => {
+		const address = 'A1:B2';
+		const result = parseAddress(address);
+		expect(result.cellFrom.value).toBe('A1');
+		expect(result.cellFrom.column).toBe('A');
+		expect(result.cellFrom.row).toBe('1');
+		expect(result.cellTo.value).toBe('B2');
+		expect(result.cellTo.column).toBe('B');
+		expect(result.cellTo.row).toBe('2');
+	});
+
+	it('should parse address with sheet name', () => {
+		const address = 'Sheet1!A1:B2';
+		const result = parseAddress(address);
+		expect(result.cellFrom.value).toBe('A1');
+		expect(result.cellFrom.column).toBe('A');
+		expect(result.cellFrom.row).toBe('1');
+		expect(result.cellTo.value).toBe('B2');
+		expect(result.cellTo.column).toBe('B');
+		expect(result.cellTo.row).toBe('2');
+	});
+
+	it('should parse address with double letter cell', () => {
+		const address = 'A1:AA2';
+		const result = parseAddress(address);
+		expect(result.cellFrom.value).toBe('A1');
+		expect(result.cellFrom.column).toBe('A');
+		expect(result.cellFrom.row).toBe('1');
+
+		expect(result.cellTo.value).toBe('AA2');
+		expect(result.cellTo.column).toBe('AA');
+		expect(result.cellTo.row).toBe('2');
 	});
 });
