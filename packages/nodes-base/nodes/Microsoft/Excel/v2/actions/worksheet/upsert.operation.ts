@@ -310,12 +310,23 @@ export async function execute(
 			false,
 		) as boolean;
 
-		// don't remove empty rows if manual range is provided or append after selected range is true
-		// when manual range is provided we need to keep updateSummary dimensions
-		const shouldRemoveEmptyRows =
-			!!updateSummary.updatedData.length && !manualRange && !appendAfterSelectedRange;
+		const checkIfRemoveEmptyRows = () => {
+			if (nodeVersion <= 2) {
+				return false;
+			}
+
+			if (nodeVersion >= 2.2) {
+				// don't remove empty rows if manual range is provided or append after selected range is true
+				// when manual range is provided we need to keep updateSummary dimensions
+				return !!updateSummary.updatedData.length && !manualRange && !appendAfterSelectedRange;
+			}
+
+			// 2.1 version
+			return !appendAfterSelectedRange && !!updateSummary.updatedData.length;
+		};
+
 		//remove empty rows from the end
-		if (nodeVersion > 2 && shouldRemoveEmptyRows) {
+		if (checkIfRemoveEmptyRows()) {
 			for (let i = updateSummary.updatedData.length - 1; i >= 0; i--) {
 				if (
 					updateSummary.updatedData[i].every(

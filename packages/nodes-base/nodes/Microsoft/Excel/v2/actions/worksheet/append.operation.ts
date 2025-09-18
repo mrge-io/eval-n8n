@@ -143,6 +143,8 @@ export async function execute(
 ): Promise<INodeExecutionData[]> {
 	const returnData: INodeExecutionData[] = [];
 
+	const nodeVersion = this.getNode().typeVersion;
+
 	const workbookId = this.getNodeParameter('workbook', 0, undefined, {
 		extractValue: true,
 	}) as string;
@@ -226,10 +228,25 @@ export async function execute(
 
 	const { address } = worksheetData;
 
-	const range = findAppendRange(address, {
-		cols: values[0]?.length ?? 0,
-		rows: values?.length ?? 0,
-	});
+	let range = '';
+
+	if (nodeVersion >= 2.2) {
+		range = findAppendRange(address, {
+			cols: values[0]?.length ?? 0,
+			rows: values?.length ?? 0,
+		});
+	} else {
+		const usedRange = address.split('!')[1];
+
+		const [rangeFrom, rangeTo] = usedRange.split(':');
+		const cellDataFrom = rangeFrom.match(/([a-zA-Z]{1,10})([0-9]{0,10})/) || [];
+		const cellDataTo = rangeTo.match(/([a-zA-Z]{1,10})([0-9]{0,10})/) || [];
+
+		const from = `${cellDataFrom[1]}${Number(cellDataTo[2]) + 1}`;
+		const to = `${cellDataTo[1]}${Number(cellDataTo[2]) + Number(values.length)}`;
+
+		range = `${from}:${to}`;
+	}
 
 	const responseData: ExcelResponse = await microsoftApiRequest.call(
 		this,
